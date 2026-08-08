@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>House Market</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+
+<body>
+
+    <div class="container">
+
+
+        <!-- ====================================
+             HEADER
+        ===================================== -->
+
+        <header>
+
+            <h1>🛒 House Market</h1>
+
+            <p>
+                What do we need from the market?
+            </p>
+
+        </header>
+
+
+
+        <!-- ====================================
+             LOGIN
+        ===================================== -->
+
+        <div
+            id="loginBox"
+            class="add-box"
+        >
+
+            <h2>Login</h2>
+
+
+            <input
+                id="loginUsername"
+                type="text"
+                placeholder="Username"
+                autocomplete="off"
+            >
+
+
+            <input
+                id="loginPassword"
+                type="password"
+                placeholder="Password"
+            >
+
+
+            <button id="loginButton">
+                Login
+            </button>
+
+
+            <p id="loginMessage"></p>
+
+        </div>
+
+
+
+        <!-- ====================================
+             MAIN APP
+        ===================================== -->
+
+        <div
+            id="appContent"
+            style="display: none;"
+        >
+
+
+            <!-- ====================================
+                 USER BAR
+            ===================================== -->
+
+            <div class="user-bar">
+
+                <p>
+
+                    Welcome,
+
+                    <strong id="welcomeName">
+                    </strong>
+
+                    👋
+
+                </p>
+
+
+                <button id="logoutButton">
+                    Logout
+                </button>
+
+            </div>
+
+
+
+            <!-- ====================================
+                 ADD ITEM
+            ===================================== -->
+
+            <div class="add-box">
+
+
+                <input
+                    id="itemName"
+                    type="text"
+                    placeholder="What do you need?"
+                    autocomplete="off"
+                >
+
+
+                <div class="row">
+
+                    <input
+                        id="quantity"
+                        type="number"
+                        value="1"
+                        min="1"
+                        autocomplete="off"
+                    >
+
+                </div>
+
+
+                <button id="addButton">
+                    Add to list
+                </button>
+
+
+            </div>
+
+
+
+            <!-- ====================================
+                 SHOPPING LIST
+            ===================================== -->
+
+            <section class="shopping-list">
+
+
+                <div class="list-header">
+
+                    <h2>
+                        Shopping List
+                    </h2>
+
+
+                    <span id="itemCount">
+                        0 items
+                    </span>
+
+                </div>
+
+
+
+                <div id="itemsContainer">
+                </div>
+
+
+            </section>
+
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ====================================
+         SUPABASE LIBRARY
+    ===================================== -->
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+    ></script>
+
+
+
+    <!-- ====================================
+         SUPABASE CONNECTION
+    ===================================== -->
+
+    <script>
+
+        const SUPABASE_URL =
+            "https://ftysipznkdquthtdxzqc.supabase.co";
+
+
+        const SUPABASE_KEY =
+            "sb_publishable_50UgIKqEbhPkVxTrNfGH9g_4zdcMGlQ";
+
+
+        const db =
+            supabase.createClient(
+                SUPABASE_URL,
+                SUPABASE_KEY
+            );
+
+    </script>
+
+
+
+    <!-- ====================================
+         OUR JAVASCRIPT
+    ===================================== -->
+
+    <script src="script.js"></script>
+
+
+</body>
+
+</html>
