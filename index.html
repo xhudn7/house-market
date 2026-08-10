@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
 
     <meta
@@ -11,15 +12,46 @@
 
     <title>House Market</title>
 
-    <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
 
-    <meta name="theme-color" content="#222222">
+    <!-- ====================================
+         CSS
+    ===================================== -->
 
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
 
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+    <!-- ====================================
+         PWA
+    ===================================== -->
+
+    <link
+        rel="manifest"
+        href="manifest.json"
+    >
+
+
+    <meta
+        name="theme-color"
+        content="#222222"
+    >
+
+
+    <meta
+        name="apple-mobile-web-app-capable"
+        content="yes"
+    >
+
+
+    <meta
+        name="apple-mobile-web-app-status-bar-style"
+        content="default"
+    >
+
 </head>
+
 
 
 <body>
@@ -33,7 +65,9 @@
 
         <header>
 
-            <h1>🛒 House Market</h1>
+            <h1>
+                🛒 House Market
+            </h1>
 
             <p>
                 What do we need from the market?
@@ -52,7 +86,9 @@
             class="add-box"
         >
 
-            <h2>Login</h2>
+            <h2>
+                Login
+            </h2>
 
 
             <input
@@ -75,7 +111,8 @@
             </button>
 
 
-            <p id="loginMessage"></p>
+            <p id="loginMessage">
+            </p>
 
         </div>
 
@@ -89,6 +126,7 @@
             id="appContent"
             style="display: none;"
         >
+
 
             <!-- ====================================
                  USER BAR
@@ -114,9 +152,18 @@
 
             </div>
 
-            <button id="enableNotificationsButton">
-    Enable Notifications
-</button>
+
+
+            <!-- ====================================
+                 ENABLE NOTIFICATIONS
+            ===================================== -->
+
+            <button
+                id="enableNotificationsButton"
+                class="notifications-button"
+            >
+                Enable Notifications
+            </button>
 
 
 
