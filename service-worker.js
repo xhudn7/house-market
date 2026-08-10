@@ -1,4 +1,4 @@
-const CACHE_NAME = "house-market-v1";
+const CACHE_NAME = "house-market-v2";
 
 const FILES_TO_CACHE = [
     "./",
