@@ -26,16 +26,32 @@ const appContent =
 // USER BAR
 // ====================================
 
-const enableNotificationsButton =
-    document.getElementById(
-        "enableNotificationsButton"
-    );
-
 const welcomeName =
     document.getElementById("welcomeName");
 
 const logoutButton =
     document.getElementById("logoutButton");
+
+
+
+// ====================================
+// NOTIFICATION BUTTONS
+// ====================================
+
+const enableNotificationsButton =
+    document.getElementById(
+        "enableNotificationsButton"
+    );
+
+const notifyFamilyButton =
+    document.getElementById(
+        "notifyFamilyButton"
+    );
+
+const goingMarketButton =
+    document.getElementById(
+        "goingMarketButton"
+    );
 
 
 
@@ -56,6 +72,16 @@ let itemsRealtimeChannel = null;
 
 
 // ====================================
+// MARKET COOLDOWN TIMER
+// ====================================
+
+let marketCooldownTimer = null;
+
+const MARKET_COOLDOWN_MINUTES = 60;
+
+
+
+// ====================================
 // SHOPPING LIST ELEMENTS
 // ====================================
 
@@ -69,10 +95,14 @@ const addButton =
     document.getElementById("addButton");
 
 const itemsContainer =
-    document.getElementById("itemsContainer");
+    document.getElementById(
+        "itemsContainer"
+    );
 
 const itemCount =
-    document.getElementById("itemCount");
+    document.getElementById(
+        "itemCount"
+    );
 
 
 
@@ -142,7 +172,13 @@ async function loadUserProfile(userId) {
         await db
             .from("profiles")
             .select(
-                "username, display_name, role"
+                `
+                username,
+                display_name,
+                role,
+                pending_notify_count,
+                last_market_notification_at
+                `
             )
             .eq(
                 "id",
@@ -153,7 +189,10 @@ async function loadUserProfile(userId) {
 
     if (error) {
 
-        console.log(error);
+        console.log(
+            "Profile error:",
+            error
+        );
 
         alert(
             "Could not load profile"
@@ -169,10 +208,222 @@ async function loadUserProfile(userId) {
 
 
     welcomeName.textContent =
-        currentUserProfile.display_name;
+        currentUserProfile
+            .display_name;
+
+
+    updateNotifyFamilyButton();
+
+    updateGoingMarketButton();
 
 
     return true;
+
+}
+
+
+
+// ====================================
+// REFRESH PROFILE STATE
+// ====================================
+
+async function refreshProfileState() {
+
+    const {
+        data,
+        error
+    } =
+        await db.auth.getSession();
+
+
+    if (
+        error ||
+        !data.session
+    ) {
+
+        return;
+
+    }
+
+
+    await loadUserProfile(
+        data.session.user.id
+    );
+
+}
+
+
+
+// ====================================
+// NOTIFY FAMILY BUTTON STATE
+// ====================================
+
+function updateNotifyFamilyButton() {
+
+    if (
+        !notifyFamilyButton ||
+        !currentUserProfile
+    ) {
+
+        return;
+
+    }
+
+
+    const count =
+        currentUserProfile
+            .pending_notify_count || 0;
+
+
+    if (
+        count > 0
+    ) {
+
+        notifyFamilyButton.disabled =
+            false;
+
+
+        notifyFamilyButton.textContent =
+            `🔔 Notify Family (${count})`;
+
+    }
+
+    else {
+
+        notifyFamilyButton.disabled =
+            true;
+
+
+        notifyFamilyButton.textContent =
+            "🔔 Nothing New to Notify";
+
+    }
+
+}
+
+
+
+// ====================================
+// GOING MARKET BUTTON STATE
+// ====================================
+
+function updateGoingMarketButton() {
+
+    if (
+        !goingMarketButton ||
+        !currentUserProfile
+    ) {
+
+        return;
+
+    }
+
+
+    const lastNotification =
+        currentUserProfile
+            .last_market_notification_at;
+
+
+    if (
+        !lastNotification
+    ) {
+
+        goingMarketButton.disabled =
+            false;
+
+
+        goingMarketButton.textContent =
+            "🚗 Going to the Market";
+
+
+        return;
+
+    }
+
+
+    const lastTime =
+        new Date(
+            lastNotification
+        ).getTime();
+
+
+    const now =
+        Date.now();
+
+
+    const cooldownMs =
+        MARKET_COOLDOWN_MINUTES *
+        60 *
+        1000;
+
+
+    const remainingMs =
+        cooldownMs -
+        (now - lastTime);
+
+
+    if (
+        remainingMs <= 0
+    ) {
+
+        goingMarketButton.disabled =
+            false;
+
+
+        goingMarketButton.textContent =
+            "🚗 Going to the Market";
+
+
+        return;
+
+    }
+
+
+    const remainingMinutes =
+        Math.ceil(
+            remainingMs /
+            1000 /
+            60
+        );
+
+
+    goingMarketButton.disabled =
+        true;
+
+
+    goingMarketButton.textContent =
+        `🚗 Available in ${remainingMinutes} min`;
+
+}
+
+
+
+// ====================================
+// START MARKET COOLDOWN TIMER
+// ====================================
+
+function startMarketCooldownTimer() {
+
+    if (
+        marketCooldownTimer
+    ) {
+
+        clearInterval(
+            marketCooldownTimer
+        );
+
+    }
+
+
+    marketCooldownTimer =
+        setInterval(
+            function () {
+
+                updateGoingMarketButton();
+
+            },
+            30000
+        );
 
 }
 
@@ -190,7 +441,9 @@ async function openApp(userId) {
         );
 
 
-    if (!profileLoaded) {
+    if (
+        !profileLoaded
+    ) {
 
         return;
 
@@ -210,6 +463,7 @@ async function openApp(userId) {
 
     startRealtime();
 
+    startMarketCooldownTimer();
 
     await updateNotificationButton();
 
@@ -247,14 +501,18 @@ loginButton.addEventListener(
             await db.auth
                 .signInWithPassword({
 
-                    email: email,
+                    email:
+                        email,
 
-                    password: password
+                    password:
+                        password
 
                 });
 
 
-        if (error) {
+        if (
+            error
+        ) {
 
             loginMessage.textContent =
                 "Wrong username or password";
@@ -313,7 +571,9 @@ async function checkExistingSession() {
             .getSession();
 
 
-    if (error) {
+    if (
+        error
+    ) {
 
         console.log(error);
 
@@ -326,7 +586,9 @@ async function checkExistingSession() {
         data.session;
 
 
-    if (!session) {
+    if (
+        !session
+    ) {
 
         loginBox.style.display =
             "block";
@@ -360,18 +622,35 @@ logoutButton.addEventListener(
         await stopRealtime();
 
 
+        if (
+            marketCooldownTimer
+        ) {
+
+            clearInterval(
+                marketCooldownTimer
+            );
+
+            marketCooldownTimer =
+                null;
+
+        }
+
+
         const {
             error
         } =
             await db.auth
                 .signOut({
 
-                    scope: "local"
+                    scope:
+                        "local"
 
                 });
 
 
-        if (error) {
+        if (
+            error
+        ) {
 
             console.log(error);
 
@@ -429,19 +708,23 @@ async function loadItems() {
             .order(
                 "completed",
                 {
-                    ascending: true
+                    ascending:
+                        true
                 }
             )
 
             .order(
                 "created_at",
                 {
-                    ascending: true
+                    ascending:
+                        true
                 }
             );
 
 
-    if (error) {
+    if (
+        error
+    ) {
 
         console.log(error);
 
@@ -518,8 +801,7 @@ function displayItem(item) {
 
             <p>
                 ${item.requested_by}
-                •
-                Qty:
+                • Qty:
                 ${item.quantity}
             </p>
 
@@ -528,11 +810,15 @@ function displayItem(item) {
 
         <div class="item-buttons">
 
-            <button class="done-button">
+            <button
+                class="done-button"
+            >
                 ✓
             </button>
 
-            <button class="delete-button">
+            <button
+                class="delete-button"
+            >
                 ✕
             </button>
 
@@ -586,7 +872,9 @@ function displayItem(item) {
                     );
 
 
-            if (error) {
+            if (
+                error
+            ) {
 
                 console.log(error);
 
@@ -597,9 +885,6 @@ function displayItem(item) {
                 return;
 
             }
-
-
-            // Realtime refreshes list
 
         }
     );
@@ -626,7 +911,9 @@ function displayItem(item) {
                     );
 
 
-            if (error) {
+            if (
+                error
+            ) {
 
                 console.log(error);
 
@@ -637,9 +924,6 @@ function displayItem(item) {
                 return;
 
             }
-
-
-            // Realtime removes item
 
         }
     );
@@ -688,6 +972,10 @@ addButton.addEventListener(
                 .display_name;
 
 
+        addButton.disabled =
+            true;
+
+
         const {
             error
         } =
@@ -710,7 +998,13 @@ addButton.addEventListener(
                 });
 
 
-        if (error) {
+        addButton.disabled =
+            false;
+
+
+        if (
+            error
+        ) {
 
             console.log(error);
 
@@ -733,13 +1027,20 @@ addButton.addEventListener(
 
         itemName.focus();
 
+
+        // Trigger already increased
+        // pending_notify_count.
+        // Reload profile to get new count.
+
+        await refreshProfileState();
+
     }
 );
 
 
 
 // ====================================
-// PRESS ENTER TO ADD ITEM
+// ENTER TO ADD ITEM
 // ====================================
 
 itemName.addEventListener(
@@ -761,7 +1062,7 @@ itemName.addEventListener(
 
 
 // ====================================
-// ENABLE NOTIFICATIONS
+// ENABLE PUSH NOTIFICATIONS
 // ====================================
 
 if (
@@ -775,29 +1076,17 @@ if (
 
                 try {
 
-                    // ====================================
-                    // CHECK SUPPORT
-                    // ====================================
-
                     if (
                         !(
                             "serviceWorker"
                             in navigator
-                        )
-                    ) {
-
-                        alert(
-                            "Service workers are not supported on this device."
-                        );
-
-                        return;
-
-                    }
-
-
-                    if (
+                        ) ||
                         !(
                             "PushManager"
+                            in window
+                        ) ||
+                        !(
+                            "Notification"
                             in window
                         )
                     ) {
@@ -810,27 +1099,6 @@ if (
 
                     }
 
-
-                    if (
-                        !(
-                            "Notification"
-                            in window
-                        )
-                    ) {
-
-                        alert(
-                            "Notifications are not supported."
-                        );
-
-                        return;
-
-                    }
-
-
-
-                    // ====================================
-                    // ASK PERMISSION
-                    // ====================================
 
                     const permission =
                         await Notification
@@ -851,32 +1119,17 @@ if (
                     }
 
 
-
-                    // ====================================
-                    // GET SERVICE WORKER
-                    // ====================================
-
                     const registration =
                         await navigator
                             .serviceWorker
                             .ready;
 
 
-
-                    // ====================================
-                    // CHECK EXISTING SUBSCRIPTION
-                    // ====================================
-
                     let subscription =
                         await registration
                             .pushManager
                             .getSubscription();
 
-
-
-                    // ====================================
-                    // CREATE SUBSCRIPTION
-                    // ====================================
 
                     if (
                         !subscription
@@ -900,50 +1153,16 @@ if (
                     }
 
 
-
-                    // ====================================
-                    // CONVERT SUBSCRIPTION
-                    // ====================================
-
                     const subscriptionJSON =
                         subscription
                             .toJSON();
 
 
-                    console.log(
-                        "Push subscription:",
-                        subscriptionJSON
-                    );
-
-
-
-                    // ====================================
-                    // GET LOGGED IN USER
-                    // ====================================
-
                     const {
-                        data: sessionData,
-                        error: sessionError
+                        data: sessionData
                     } =
                         await db.auth
                             .getSession();
-
-
-                    if (
-                        sessionError
-                    ) {
-
-                        console.log(
-                            sessionError
-                        );
-
-                        alert(
-                            "Could not get current user."
-                        );
-
-                        return;
-
-                    }
 
 
                     if (
@@ -964,11 +1183,6 @@ if (
                             .session
                             .user;
 
-
-
-                    // ====================================
-                    // CHECK DATABASE FOR THIS ENDPOINT
-                    // ====================================
 
                     const {
                         data:
@@ -1000,7 +1214,6 @@ if (
                     ) {
 
                         console.log(
-                            "Subscription check error:",
                             checkError
                         );
 
@@ -1012,11 +1225,6 @@ if (
 
                     }
 
-
-
-                    // ====================================
-                    // SAVE ONLY IF NOT ALREADY SAVED
-                    // ====================================
 
                     if (
                         existingSubscriptions
@@ -1058,7 +1266,6 @@ if (
                         ) {
 
                             console.log(
-                                "Subscription insert error:",
                                 insertError
                             );
 
@@ -1072,11 +1279,6 @@ if (
 
                     }
 
-
-
-                    // ====================================
-                    // SUCCESS
-                    // ====================================
 
                     enableNotificationsButton
                         .textContent =
@@ -1116,7 +1318,7 @@ if (
 
 
 // ====================================
-// CHECK NOTIFICATION STATUS
+// CHECK PUSH NOTIFICATION STATUS
 // ====================================
 
 async function updateNotificationButton() {
@@ -1141,9 +1343,11 @@ async function updateNotificationButton() {
             .textContent =
             "Notifications unavailable";
 
+
         enableNotificationsButton
             .disabled =
             true;
+
 
         return;
 
@@ -1159,9 +1363,11 @@ async function updateNotificationButton() {
             .textContent =
             "Enable Notifications";
 
+
         enableNotificationsButton
             .disabled =
             false;
+
 
         return;
 
@@ -1190,6 +1396,7 @@ async function updateNotificationButton() {
                 .textContent =
                 "Notifications Enabled ✓";
 
+
             enableNotificationsButton
                 .disabled =
                 true;
@@ -1208,6 +1415,273 @@ async function updateNotificationButton() {
     }
 
 }
+
+
+
+// ====================================
+// NOTIFY FAMILY
+// ====================================
+
+notifyFamilyButton.addEventListener(
+    "click",
+    async function () {
+
+        if (
+            !currentUserProfile
+        ) {
+
+            return;
+
+        }
+
+
+        const count =
+            currentUserProfile
+                .pending_notify_count || 0;
+
+
+        if (
+            count <= 0
+        ) {
+
+            updateNotifyFamilyButton();
+
+            return;
+
+        }
+
+
+        notifyFamilyButton.disabled =
+            true;
+
+
+        notifyFamilyButton.textContent =
+            "🔔 Sending...";
+
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await db.functions
+                    .invoke(
+                        "send-push",
+                        {
+
+                            body: {
+
+                                action:
+                                    "notify_family"
+
+                            }
+
+                        }
+                    );
+
+
+            if (
+                error
+            ) {
+
+                console.log(
+                    "Notify family error:",
+                    error
+                );
+
+
+                alert(
+                    "Could not notify the family."
+                );
+
+
+                await refreshProfileState();
+
+                return;
+
+            }
+
+
+            if (
+                !data ||
+                data.success !== true
+            ) {
+
+                alert(
+                    data?.error ||
+                    "Could not notify the family."
+                );
+
+
+                await refreshProfileState();
+
+                return;
+
+            }
+
+
+            alert(
+                `Family notified ✅\n${data.message}`
+            );
+
+
+            await refreshProfileState();
+
+        }
+
+        catch (error) {
+
+            console.log(
+                "Notify family error:",
+                error
+            );
+
+
+            alert(
+                "Could not notify the family."
+            );
+
+
+            await refreshProfileState();
+
+        }
+
+    }
+);
+
+
+
+// ====================================
+// GOING TO THE MARKET
+// ====================================
+
+goingMarketButton.addEventListener(
+    "click",
+    async function () {
+
+        if (
+            !currentUserProfile
+        ) {
+
+            return;
+
+        }
+
+
+        goingMarketButton.disabled =
+            true;
+
+
+        goingMarketButton.textContent =
+            "🚗 Sending...";
+
+
+        try {
+
+            const {
+                data,
+                error
+            } =
+                await db.functions
+                    .invoke(
+                        "send-push",
+                        {
+
+                            body: {
+
+                                action:
+                                    "going_market"
+
+                            }
+
+                        }
+                    );
+
+
+            if (
+                error
+            ) {
+
+                console.log(
+                    "Going market error:",
+                    error
+                );
+
+
+                alert(
+                    "Could not send market notification."
+                );
+
+
+                await refreshProfileState();
+
+                return;
+
+            }
+
+
+            if (
+                !data ||
+                data.success !== true
+            ) {
+
+                if (
+                    data?.code ===
+                    "MARKET_COOLDOWN"
+                ) {
+
+                    alert(
+                        `You can use this again in ${data.remaining_minutes} minutes.`
+                    );
+
+                }
+
+                else {
+
+                    alert(
+                        data?.error ||
+                        "Could not send market notification."
+                    );
+
+                }
+
+
+                await refreshProfileState();
+
+                return;
+
+            }
+
+
+            alert(
+                "Family notified that you're going to the market 🚗✅"
+            );
+
+
+            await refreshProfileState();
+
+        }
+
+        catch (error) {
+
+            console.log(
+                "Going market error:",
+                error
+            );
+
+
+            alert(
+                "Could not send market notification."
+            );
+
+
+            await refreshProfileState();
+
+        }
+
+    }
+);
 
 
 
@@ -1237,7 +1711,8 @@ function startRealtime() {
 
                 {
 
-                    event: "*",
+                    event:
+                        "*",
 
                     schema:
                         "public",
