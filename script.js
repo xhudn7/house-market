@@ -26,6 +26,11 @@ const appContent =
 // USER BAR
 // ====================================
 
+const enableNotificationsButton =
+    document.getElementById(
+        "enableNotificationsButton"
+    );
+
 const welcomeName =
     document.getElementById("welcomeName");
 
@@ -72,6 +77,59 @@ const itemCount =
 
 
 // ====================================
+// VAPID PUBLIC KEY
+// ====================================
+
+const VAPID_PUBLIC_KEY =
+    "BCijp9taI2BTDBs4g4iFm-YNf5Z21LRskYKJJgQLQjdOQf8Y5ixevnXUkDoglfXhBS9gHuYxupnrhtxbUcL8G1w";
+
+
+
+// ====================================
+// CONVERT VAPID KEY
+// ====================================
+
+function urlBase64ToUint8Array(
+    base64String
+) {
+
+    const padding =
+        "=".repeat(
+            (
+                4 -
+                base64String.length % 4
+            ) % 4
+        );
+
+
+    const base64 =
+        (
+            base64String +
+            padding
+        )
+            .replace(/-/g, "+")
+            .replace(/_/g, "/");
+
+
+    const rawData =
+        window.atob(base64);
+
+
+    return Uint8Array.from(
+        [...rawData].map(
+            function (char) {
+
+                return char.charCodeAt(0);
+
+            }
+        )
+    );
+
+}
+
+
+
+// ====================================
 // LOAD USER PROFILE
 // ====================================
 
@@ -80,24 +138,34 @@ async function loadUserProfile(userId) {
     const {
         data: profile,
         error
-    } = await db
-        .from("profiles")
-        .select("username, display_name, role")
-        .eq("id", userId)
-        .single();
+    } =
+        await db
+            .from("profiles")
+            .select(
+                "username, display_name, role"
+            )
+            .eq(
+                "id",
+                userId
+            )
+            .single();
 
 
     if (error) {
 
         console.log(error);
 
-        alert("Could not load profile");
+        alert(
+            "Could not load profile"
+        );
 
         return false;
+
     }
 
 
-    currentUserProfile = profile;
+    currentUserProfile =
+        profile;
 
 
     welcomeName.textContent =
@@ -105,6 +173,7 @@ async function loadUserProfile(userId) {
 
 
     return true;
+
 }
 
 
@@ -116,24 +185,33 @@ async function loadUserProfile(userId) {
 async function openApp(userId) {
 
     const profileLoaded =
-        await loadUserProfile(userId);
+        await loadUserProfile(
+            userId
+        );
 
 
     if (!profileLoaded) {
 
         return;
+
     }
 
 
-    loginBox.style.display = "none";
+    loginBox.style.display =
+        "none";
 
-    appContent.style.display = "block";
+
+    appContent.style.display =
+        "block";
 
 
     await loadItems();
 
 
     startRealtime();
+
+
+    await updateNotificationButton();
 
 }
 
@@ -158,7 +236,8 @@ loginButton.addEventListener(
 
 
         const email =
-            username + "@house.local";
+            username +
+            "@house.local";
 
 
         const {
@@ -169,6 +248,7 @@ loginButton.addEventListener(
                 .signInWithPassword({
 
                     email: email,
+
                     password: password
 
                 });
@@ -180,15 +260,39 @@ loginButton.addEventListener(
                 "Wrong username or password";
 
             return;
+
         }
 
 
-        loginMessage.textContent = "";
+        loginMessage.textContent =
+            "";
 
 
         await openApp(
             data.user.id
         );
+
+    }
+);
+
+
+
+// ====================================
+// PRESS ENTER TO LOGIN
+// ====================================
+
+loginPassword.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (
+            event.key ===
+            "Enter"
+        ) {
+
+            loginButton.click();
+
+        }
 
     }
 );
@@ -205,7 +309,8 @@ async function checkExistingSession() {
         data,
         error
     } =
-        await db.auth.getSession();
+        await db.auth
+            .getSession();
 
 
     if (error) {
@@ -213,6 +318,7 @@ async function checkExistingSession() {
         console.log(error);
 
         return;
+
     }
 
 
@@ -225,10 +331,13 @@ async function checkExistingSession() {
         loginBox.style.display =
             "block";
 
+
         appContent.style.display =
             "none";
 
+
         return;
+
     }
 
 
@@ -248,31 +357,39 @@ logoutButton.addEventListener(
     "click",
     async function () {
 
-        stopRealtime();
+        await stopRealtime();
 
 
         const {
             error
         } =
-            await db.auth.signOut({
-                scope: "local"
-            });
+            await db.auth
+                .signOut({
+
+                    scope: "local"
+
+                });
 
 
         if (error) {
 
             console.log(error);
 
-            alert("Could not logout");
+            alert(
+                "Could not logout"
+            );
 
             return;
+
         }
 
 
-        currentUserProfile = null;
+        currentUserProfile =
+            null;
 
 
-        itemsContainer.innerHTML = "";
+        itemsContainer.innerHTML =
+            "";
 
 
         itemCount.textContent =
@@ -287,7 +404,8 @@ logoutButton.addEventListener(
             "block";
 
 
-        loginPassword.value = "";
+        loginPassword.value =
+            "";
 
     }
 );
@@ -332,10 +450,12 @@ async function loadItems() {
         );
 
         return;
+
     }
 
 
-    itemsContainer.innerHTML = "";
+    itemsContainer.innerHTML =
+        "";
 
 
     items.forEach(
@@ -348,7 +468,8 @@ async function loadItems() {
 
 
     itemCount.textContent =
-        items.length + " items";
+        items.length +
+        " items";
 
 }
 
@@ -361,17 +482,24 @@ async function loadItems() {
 function displayItem(item) {
 
     const newItem =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
 
-    newItem.classList.add("item");
+    newItem.classList.add(
+        "item"
+    );
 
 
     newItem.dataset.id =
         item.id;
 
 
-    if (item.completed === true) {
+    if (
+        item.completed ===
+        true
+    ) {
 
         newItem.classList.add(
             "completed"
@@ -384,11 +512,15 @@ function displayItem(item) {
 
         <div>
 
-            <h3>${item.item_name}</h3>
+            <h3>
+                ${item.item_name}
+            </h3>
 
             <p>
                 ${item.requested_by}
-                • Qty: ${item.quantity}
+                •
+                Qty:
+                ${item.quantity}
             </p>
 
         </div>
@@ -463,11 +595,11 @@ function displayItem(item) {
                 );
 
                 return;
+
             }
 
 
-            // Realtime will refresh the list,
-            // so we do not need to manually move it here.
+            // Realtime refreshes list
 
         }
     );
@@ -503,10 +635,11 @@ function displayItem(item) {
                 );
 
                 return;
+
             }
 
 
-            // Realtime handles removal
+            // Realtime removes item
 
         }
     );
@@ -529,25 +662,30 @@ addButton.addEventListener(
     async function () {
 
         const name =
-            itemName.value.trim();
+            itemName.value
+                .trim();
 
 
         const qty =
             quantity.value;
 
 
-        if (name === "") {
+        if (
+            name === ""
+        ) {
 
             alert(
                 "Please enter an item"
             );
 
             return;
+
         }
 
 
         const person =
-            currentUserProfile.display_name;
+            currentUserProfile
+                .display_name;
 
 
         const {
@@ -557,14 +695,17 @@ addButton.addEventListener(
                 .from("items")
                 .insert({
 
-                    item_name: name,
+                    item_name:
+                        name,
 
-                    quantity: qty,
+                    quantity:
+                        qty,
 
                     requested_by:
                         person,
 
-                    completed: false
+                    completed:
+                        false
 
                 });
 
@@ -578,15 +719,16 @@ addButton.addEventListener(
             );
 
             return;
+
         }
 
 
-        // Realtime will add it to the list
+        itemName.value =
+            "";
 
 
-        itemName.value = "";
-
-        quantity.value = 1;
+        quantity.value =
+            1;
 
 
         itemName.focus();
@@ -597,32 +739,517 @@ addButton.addEventListener(
 
 
 // ====================================
+// PRESS ENTER TO ADD ITEM
+// ====================================
+
+itemName.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (
+            event.key ===
+            "Enter"
+        ) {
+
+            addButton.click();
+
+        }
+
+    }
+);
+
+
+
+// ====================================
+// ENABLE NOTIFICATIONS
+// ====================================
+
+if (
+    enableNotificationsButton
+) {
+
+    enableNotificationsButton
+        .addEventListener(
+            "click",
+            async function () {
+
+                try {
+
+                    // ====================================
+                    // CHECK SUPPORT
+                    // ====================================
+
+                    if (
+                        !(
+                            "serviceWorker"
+                            in navigator
+                        )
+                    ) {
+
+                        alert(
+                            "Service workers are not supported on this device."
+                        );
+
+                        return;
+
+                    }
+
+
+                    if (
+                        !(
+                            "PushManager"
+                            in window
+                        )
+                    ) {
+
+                        alert(
+                            "Push notifications are not supported on this device."
+                        );
+
+                        return;
+
+                    }
+
+
+                    if (
+                        !(
+                            "Notification"
+                            in window
+                        )
+                    ) {
+
+                        alert(
+                            "Notifications are not supported."
+                        );
+
+                        return;
+
+                    }
+
+
+
+                    // ====================================
+                    // ASK PERMISSION
+                    // ====================================
+
+                    const permission =
+                        await Notification
+                            .requestPermission();
+
+
+                    if (
+                        permission !==
+                        "granted"
+                    ) {
+
+                        alert(
+                            "Notifications were not allowed."
+                        );
+
+                        return;
+
+                    }
+
+
+
+                    // ====================================
+                    // GET SERVICE WORKER
+                    // ====================================
+
+                    const registration =
+                        await navigator
+                            .serviceWorker
+                            .ready;
+
+
+
+                    // ====================================
+                    // CHECK EXISTING SUBSCRIPTION
+                    // ====================================
+
+                    let subscription =
+                        await registration
+                            .pushManager
+                            .getSubscription();
+
+
+
+                    // ====================================
+                    // CREATE SUBSCRIPTION
+                    // ====================================
+
+                    if (
+                        !subscription
+                    ) {
+
+                        subscription =
+                            await registration
+                                .pushManager
+                                .subscribe({
+
+                                    userVisibleOnly:
+                                        true,
+
+                                    applicationServerKey:
+                                        urlBase64ToUint8Array(
+                                            VAPID_PUBLIC_KEY
+                                        )
+
+                                });
+
+                    }
+
+
+
+                    // ====================================
+                    // CONVERT SUBSCRIPTION
+                    // ====================================
+
+                    const subscriptionJSON =
+                        subscription
+                            .toJSON();
+
+
+                    console.log(
+                        "Push subscription:",
+                        subscriptionJSON
+                    );
+
+
+
+                    // ====================================
+                    // GET LOGGED IN USER
+                    // ====================================
+
+                    const {
+                        data: sessionData,
+                        error: sessionError
+                    } =
+                        await db.auth
+                            .getSession();
+
+
+                    if (
+                        sessionError
+                    ) {
+
+                        console.log(
+                            sessionError
+                        );
+
+                        alert(
+                            "Could not get current user."
+                        );
+
+                        return;
+
+                    }
+
+
+                    if (
+                        !sessionData.session
+                    ) {
+
+                        alert(
+                            "Please login first."
+                        );
+
+                        return;
+
+                    }
+
+
+                    const user =
+                        sessionData
+                            .session
+                            .user;
+
+
+
+                    // ====================================
+                    // CHECK DATABASE FOR THIS ENDPOINT
+                    // ====================================
+
+                    const {
+                        data:
+                            existingSubscriptions,
+
+                        error:
+                            checkError
+                    } =
+                        await db
+                            .from(
+                                "push_subscriptions"
+                            )
+                            .select(
+                                "id, endpoint"
+                            )
+                            .eq(
+                                "user_id",
+                                user.id
+                            )
+                            .eq(
+                                "endpoint",
+                                subscriptionJSON
+                                    .endpoint
+                            );
+
+
+                    if (
+                        checkError
+                    ) {
+
+                        console.log(
+                            "Subscription check error:",
+                            checkError
+                        );
+
+                        alert(
+                            "Could not check notification subscription."
+                        );
+
+                        return;
+
+                    }
+
+
+
+                    // ====================================
+                    // SAVE ONLY IF NOT ALREADY SAVED
+                    // ====================================
+
+                    if (
+                        existingSubscriptions
+                            .length === 0
+                    ) {
+
+                        const {
+                            error:
+                                insertError
+                        } =
+                            await db
+                                .from(
+                                    "push_subscriptions"
+                                )
+                                .insert({
+
+                                    user_id:
+                                        user.id,
+
+                                    endpoint:
+                                        subscriptionJSON
+                                            .endpoint,
+
+                                    p256dh:
+                                        subscriptionJSON
+                                            .keys
+                                            .p256dh,
+
+                                    auth:
+                                        subscriptionJSON
+                                            .keys
+                                            .auth
+
+                                });
+
+
+                        if (
+                            insertError
+                        ) {
+
+                            console.log(
+                                "Subscription insert error:",
+                                insertError
+                            );
+
+                            alert(
+                                "Could not save notification subscription."
+                            );
+
+                            return;
+
+                        }
+
+                    }
+
+
+
+                    // ====================================
+                    // SUCCESS
+                    // ====================================
+
+                    enableNotificationsButton
+                        .textContent =
+                        "Notifications Enabled ✓";
+
+
+                    enableNotificationsButton
+                        .disabled =
+                        true;
+
+
+                    alert(
+                        "Notifications enabled ✅"
+                    );
+
+                }
+
+                catch (error) {
+
+                    console.log(
+                        "Notification error:",
+                        error
+                    );
+
+
+                    alert(
+                        "Could not enable notifications."
+                    );
+
+                }
+
+            }
+        );
+
+}
+
+
+
+// ====================================
+// CHECK NOTIFICATION STATUS
+// ====================================
+
+async function updateNotificationButton() {
+
+    if (
+        !enableNotificationsButton
+    ) {
+
+        return;
+
+    }
+
+
+    if (
+        !(
+            "Notification"
+            in window
+        )
+    ) {
+
+        enableNotificationsButton
+            .textContent =
+            "Notifications unavailable";
+
+        enableNotificationsButton
+            .disabled =
+            true;
+
+        return;
+
+    }
+
+
+    if (
+        Notification.permission !==
+        "granted"
+    ) {
+
+        enableNotificationsButton
+            .textContent =
+            "Enable Notifications";
+
+        enableNotificationsButton
+            .disabled =
+            false;
+
+        return;
+
+    }
+
+
+    try {
+
+        const registration =
+            await navigator
+                .serviceWorker
+                .ready;
+
+
+        const subscription =
+            await registration
+                .pushManager
+                .getSubscription();
+
+
+        if (
+            subscription
+        ) {
+
+            enableNotificationsButton
+                .textContent =
+                "Notifications Enabled ✓";
+
+            enableNotificationsButton
+                .disabled =
+                true;
+
+        }
+
+    }
+
+    catch (error) {
+
+        console.log(
+            "Notification status error:",
+            error
+        );
+
+    }
+
+}
+
+
+
+// ====================================
 // REALTIME
 // ====================================
 
 function startRealtime() {
 
-    // Avoid creating the channel twice
-    if (itemsRealtimeChannel) {
+    if (
+        itemsRealtimeChannel
+    ) {
 
         return;
+
     }
 
 
     itemsRealtimeChannel =
         db
-            .channel("items-live")
+            .channel(
+                "items-live"
+            )
 
             .on(
                 "postgres_changes",
 
                 {
+
                     event: "*",
-                    schema: "public",
-                    table: "items"
+
+                    schema:
+                        "public",
+
+                    table:
+                        "items"
+
                 },
 
-                async function (payload) {
+                async function (
+                    payload
+                ) {
 
                     console.log(
                         "Realtime change:",
@@ -630,8 +1257,6 @@ function startRealtime() {
                     );
 
 
-                    // Reload everything.
-                    // Simple and reliable for a small house app.
                     await loadItems();
 
                 }
@@ -658,9 +1283,12 @@ function startRealtime() {
 
 async function stopRealtime() {
 
-    if (!itemsRealtimeChannel) {
+    if (
+        !itemsRealtimeChannel
+    ) {
 
         return;
+
     }
 
 
@@ -669,7 +1297,8 @@ async function stopRealtime() {
     );
 
 
-    itemsRealtimeChannel = null;
+    itemsRealtimeChannel =
+        null;
 
 }
 
@@ -681,33 +1310,50 @@ async function stopRealtime() {
 
 checkExistingSession();
 
+
+
 // ====================================
 // SERVICE WORKER
 // ====================================
 
-if ("serviceWorker" in navigator) {
+if (
+    "serviceWorker"
+    in navigator
+) {
 
     window.addEventListener(
         "load",
         function () {
 
-            navigator.serviceWorker
-                .register("./service-worker.js")
-                .then(function () {
+            navigator
+                .serviceWorker
+                .register(
+                    "./service-worker.js"
+                )
+                .then(
+                    function (
+                        registration
+                    ) {
 
-                    console.log(
-                        "Service Worker registered"
-                    );
+                        console.log(
+                            "Service Worker registered",
+                            registration
+                        );
 
-                })
-                .catch(function (error) {
-
-                    console.log(
-                        "Service Worker error:",
+                    }
+                )
+                .catch(
+                    function (
                         error
-                    );
+                    ) {
 
-                });
+                        console.log(
+                            "Service Worker error:",
+                            error
+                        );
+
+                    }
+                );
 
         }
     );
