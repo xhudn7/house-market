@@ -1,4 +1,4 @@
-const CACHE_NAME = "house-market-v3";
+const CACHE_NAME = "house-market-v4";
 
 const FILES_TO_CACHE = [
     "./",
@@ -9,89 +9,261 @@ const FILES_TO_CACHE = [
 ];
 
 
-// Install new service worker immediately
-self.addEventListener("install", function (event) {
+// ====================================
+// INSTALL
+// ====================================
 
-    self.skipWaiting();
+self.addEventListener(
+    "install",
+    function (event) {
 
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(function (cache) {
-                return cache.addAll(FILES_TO_CACHE);
-            })
-    );
+        self.skipWaiting();
 
-});
+        event.waitUntil(
+            caches.open(CACHE_NAME)
+                .then(function (cache) {
+
+                    return cache.addAll(
+                        FILES_TO_CACHE
+                    );
+
+                })
+        );
+
+    }
+);
 
 
-// Take control immediately
-self.addEventListener("activate", function (event) {
+// ====================================
+// ACTIVATE
+// ====================================
 
-    event.waitUntil(
+self.addEventListener(
+    "activate",
+    function (event) {
 
-        caches.keys()
-            .then(function (cacheNames) {
+        event.waitUntil(
 
-                return Promise.all(
+            caches.keys()
+                .then(function (cacheNames) {
 
-                    cacheNames.map(
-                        function (cacheName) {
+                    return Promise.all(
 
-                            if (cacheName !== CACHE_NAME) {
-                                return caches.delete(cacheName);
+                        cacheNames.map(
+                            function (cacheName) {
+
+                                if (
+                                    cacheName !==
+                                    CACHE_NAME
+                                ) {
+
+                                    return caches.delete(
+                                        cacheName
+                                    );
+
+                                }
+
                             }
+                        )
+
+                    );
+
+                })
+                .then(function () {
+
+                    return self.clients.claim();
+
+                })
+
+        );
+
+    }
+);
+
+
+// ====================================
+// FETCH
+// ====================================
+
+self.addEventListener(
+    "fetch",
+    function (event) {
+
+        event.respondWith(
+
+            fetch(event.request)
+
+                .then(function (response) {
+
+                    const responseCopy =
+                        response.clone();
+
+
+                    caches.open(CACHE_NAME)
+                        .then(function (cache) {
+
+                            cache.put(
+                                event.request,
+                                responseCopy
+                            );
+
+                        });
+
+
+                    return response;
+
+                })
+
+                .catch(function () {
+
+                    return caches.match(
+                        event.request
+                    );
+
+                })
+
+        );
+
+    }
+);
+
+
+// ====================================
+// PUSH NOTIFICATION
+// ====================================
+
+self.addEventListener(
+    "push",
+    function (event) {
+
+        let data = {
+
+            title:
+                "House Market",
+
+            body:
+                "New shopping list update"
+
+        };
+
+
+        if (event.data) {
+
+            try {
+
+                data =
+                    event.data.json();
+
+            }
+
+            catch (error) {
+
+                console.log(
+                    "Could not read push data:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        const title =
+            data.title ||
+            "House Market";
+
+
+        const options = {
+
+            body:
+                data.body ||
+                data.message ||
+                "New shopping list update",
+
+            tag:
+                "house-market",
+
+            data: {
+
+                url:
+                    "./"
+
+            }
+
+        };
+
+
+        event.waitUntil(
+
+            self.registration
+                .showNotification(
+                    title,
+                    options
+                )
+
+        );
+
+    }
+);
+
+
+// ====================================
+// NOTIFICATION CLICK
+// ====================================
+
+self.addEventListener(
+    "notificationclick",
+    function (event) {
+
+        event.notification.close();
+
+
+        event.waitUntil(
+
+            clients.matchAll({
+
+                type:
+                    "window",
+
+                includeUncontrolled:
+                    true
+
+            })
+
+                .then(function (
+                    clientList
+                ) {
+
+                    for (
+                        const client
+                        of clientList
+                    ) {
+
+                        if (
+                            "focus"
+                            in client
+                        ) {
+
+                            return client.focus();
 
                         }
-                    )
 
-                );
-
-            })
-            .then(function () {
-
-                return self.clients.claim();
-
-            })
-
-    );
-
-});
+                    }
 
 
-// Network first, cache fallback
-self.addEventListener("fetch", function (event) {
+                    if (
+                        clients.openWindow
+                    ) {
 
-    event.respondWith(
-
-        fetch(event.request)
-
-            .then(function (response) {
-
-                const responseCopy =
-                    response.clone();
-
-                caches.open(CACHE_NAME)
-                    .then(function (cache) {
-
-                        cache.put(
-                            event.request,
-                            responseCopy
+                        return clients.openWindow(
+                            "./"
                         );
 
-                    });
+                    }
 
-                return response;
+                })
 
-            })
+        );
 
-            .catch(function () {
-
-                return caches.match(
-                    event.request
-                );
-
-            })
-
-    );
-
-});
+    }
+);
