@@ -72,7 +72,7 @@ let itemsRealtimeChannel = null;
 
 
 // ====================================
-// MARKET COOLDOWN TIMER
+// MARKET COOLDOWN
 // ====================================
 
 let marketCooldownTimer = null;
@@ -255,6 +255,35 @@ async function refreshProfileState() {
 
 
 // ====================================
+// GET USER ACCESS TOKEN
+// ====================================
+
+async function getCurrentAccessToken() {
+
+    const {
+        data,
+        error
+    } =
+        await db.auth.getSession();
+
+
+    if (
+        error ||
+        !data.session
+    ) {
+
+        return null;
+
+    }
+
+
+    return data.session.access_token;
+
+}
+
+
+
+// ====================================
 // NOTIFY FAMILY BUTTON STATE
 // ====================================
 
@@ -399,7 +428,7 @@ function updateGoingMarketButton() {
 
 
 // ====================================
-// START MARKET COOLDOWN TIMER
+// MARKET COOLDOWN TIMER
 // ====================================
 
 function startMarketCooldownTimer() {
@@ -536,7 +565,7 @@ loginButton.addEventListener(
 
 
 // ====================================
-// PRESS ENTER TO LOGIN
+// ENTER TO LOGIN
 // ====================================
 
 loginPassword.addEventListener(
@@ -1028,10 +1057,6 @@ addButton.addEventListener(
         itemName.focus();
 
 
-        // Trigger already increased
-        // pending_notify_count.
-        // Reload profile to get new count.
-
         await refreshProfileState();
 
     }
@@ -1318,7 +1343,7 @@ if (
 
 
 // ====================================
-// CHECK PUSH NOTIFICATION STATUS
+// CHECK NOTIFICATION STATUS
 // ====================================
 
 async function updateNotificationButton() {
@@ -1461,6 +1486,25 @@ notifyFamilyButton.addEventListener(
 
         try {
 
+            const accessToken =
+                await getCurrentAccessToken();
+
+
+            if (
+                !accessToken
+            ) {
+
+                alert(
+                    "Please login again."
+                );
+
+                await refreshProfileState();
+
+                return;
+
+            }
+
+
             const {
                 data,
                 error
@@ -1469,6 +1513,13 @@ notifyFamilyButton.addEventListener(
                     .invoke(
                         "send-push",
                         {
+
+                            headers: {
+
+                                Authorization:
+                                    `Bearer ${accessToken}`
+
+                            },
 
                             body: {
 
@@ -1579,6 +1630,25 @@ goingMarketButton.addEventListener(
 
         try {
 
+            const accessToken =
+                await getCurrentAccessToken();
+
+
+            if (
+                !accessToken
+            ) {
+
+                alert(
+                    "Please login again."
+                );
+
+                await refreshProfileState();
+
+                return;
+
+            }
+
+
             const {
                 data,
                 error
@@ -1587,6 +1657,13 @@ goingMarketButton.addEventListener(
                     .invoke(
                         "send-push",
                         {
+
+                            headers: {
+
+                                Authorization:
+                                    `Bearer ${accessToken}`
+
+                            },
 
                             body: {
 
