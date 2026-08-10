@@ -107,6 +107,24 @@ const itemCount =
 
 
 // ====================================
+// SUPABASE FUNCTION URL
+// ====================================
+
+const SEND_PUSH_FUNCTION_URL =
+    "https://ftysipznkdquthtdxzqc.supabase.co/functions/v1/send-push";
+
+
+
+// ====================================
+// SUPABASE PUBLISHABLE KEY
+// ====================================
+
+const SUPABASE_PUBLISHABLE_KEY =
+    "sb_publishable_50UgIKqEbhPkVxTrNfGH9g_4zdcMGlQ";
+
+
+
+// ====================================
 // VAPID PUBLIC KEY
 // ====================================
 
@@ -160,10 +178,10 @@ function urlBase64ToUint8Array(
 
 
 // ====================================
-// SYNC EDGE FUNCTION AUTH
+// GET CURRENT SESSION
 // ====================================
 
-async function syncFunctionAuth() {
+async function getCurrentSession() {
 
     const {
         data,
@@ -178,21 +196,16 @@ async function syncFunctionAuth() {
     ) {
 
         console.log(
-            "Could not sync function auth:",
+            "Session error:",
             error
         );
 
-        return false;
+        return null;
 
     }
 
 
-    db.functions.setAuth(
-        data.session.access_token
-    );
-
-
-    return true;
+    return data.session;
 
 }
 
@@ -274,16 +287,12 @@ async function loadUserProfile(
 
 async function refreshProfileState() {
 
-    const {
-        data,
-        error
-    } =
-        await db.auth.getSession();
+    const session =
+        await getCurrentSession();
 
 
     if (
-        error ||
-        !data.session
+        !session
     ) {
 
         return;
@@ -292,7 +301,7 @@ async function refreshProfileState() {
 
 
     await loadUserProfile(
-        data.session.user.id
+        session.user.id
     );
 
 }
@@ -500,24 +509,6 @@ async function openApp(
     }
 
 
-    // Set the real signed-in user's JWT
-    // for Edge Function requests.
-
-    const authSynced =
-        await syncFunctionAuth();
-
-
-    if (
-        !authSynced
-    ) {
-
-        console.log(
-            "Edge Function auth not ready"
-        );
-
-    }
-
-
     loginBox.style.display =
         "none";
 
@@ -595,12 +586,6 @@ loginButton.addEventListener(
             "";
 
 
-        // Make sure Edge Functions
-        // use this new session.
-
-        await syncFunctionAuth();
-
-
         await openApp(
             data.user.id
         );
@@ -638,30 +623,8 @@ loginPassword.addEventListener(
 
 async function checkExistingSession() {
 
-    const {
-        data,
-        error
-    } =
-        await db.auth
-            .getSession();
-
-
-    if (
-        error
-    ) {
-
-        console.log(
-            error
-        );
-
-
-        return;
-
-    }
-
-
     const session =
-        data.session;
+        await getCurrentSession();
 
 
     if (
@@ -679,9 +642,6 @@ async function checkExistingSession() {
         return;
 
     }
-
-
-    await syncFunctionAuth();
 
 
     await openApp(
@@ -1135,9 +1095,6 @@ addButton.addEventListener(
         itemName.focus();
 
 
-        // Database trigger already increased
-        // pending_notify_count.
-
         await refreshProfileState();
 
     }
@@ -1266,15 +1223,12 @@ if (
                             .toJSON();
 
 
-                    const {
-                        data: sessionData
-                    } =
-                        await db.auth
-                            .getSession();
+                    const session =
+                        await getCurrentSession();
 
 
                     if (
-                        !sessionData.session
+                        !session
                     ) {
 
                         alert(
@@ -1288,9 +1242,7 @@ if (
 
 
                     const user =
-                        sessionData
-                            .session
-                            .user;
+                        session.user;
 
 
                     const {
@@ -1578,15 +1530,12 @@ notifyFamilyButton.addEventListener(
 
         try {
 
-            // Refresh JWT immediately
-            // before calling function.
-
-            const authReady =
-                await syncFunctionAuth();
+            const session =
+                await getCurrentSession();
 
 
             if (
-                !authReady
+                !session
             ) {
 
                 alert(
@@ -1602,65 +1551,65 @@ notifyFamilyButton.addEventListener(
             }
 
 
-            const {
-                data,
-                error
-            } =
-                await db.functions.invoke(
-                    "send-push",
+            const accessToken =
+                session.access_token;
+
+
+            console.log(
+                "Calling send-push as user:",
+                session.user.id
+            );
+
+
+            const response =
+                await fetch(
+                    SEND_PUSH_FUNCTION_URL,
                     {
 
-                        body: {
+                        method:
+                            "POST",
 
-                            action:
-                                "notify_family"
+                        headers: {
 
-                        }
+                            "Content-Type":
+                                "application/json",
+
+                            "apikey":
+                                SUPABASE_PUBLISHABLE_KEY,
+
+                            "Authorization":
+                                `Bearer ${accessToken}`
+
+                        },
+
+                        body:
+                            JSON.stringify({
+
+                                action:
+                                    "notify_family"
+
+                            })
 
                     }
                 );
 
 
+            const data =
+                await response.json();
+
+
+            console.log(
+                "Notify family response:",
+                data
+            );
+
+
             if (
-                error
+                !response.ok
             ) {
 
-                console.log(
-                    "Notify family error:",
-                    error
-                );
-
-
-                // Try to display actual
-                // Edge Function response.
-
-                try {
-
-                    const errorBody =
-                        await error.context
-                            .json();
-
-
-                    console.log(
-                        "Function response:",
-                        errorBody
-                    );
-
-                }
-
-                catch (
-                    readError
-                ) {
-
-                    console.log(
-                        "Could not read function error:",
-                        readError
-                    );
-
-                }
-
-
                 alert(
+                    data.error ||
                     "Could not notify the family."
                 );
 
@@ -1674,12 +1623,11 @@ notifyFamilyButton.addEventListener(
 
 
             if (
-                !data ||
                 data.success !== true
             ) {
 
                 alert(
-                    data?.error ||
+                    data.error ||
                     "Could not notify the family."
                 );
 
@@ -1752,15 +1700,12 @@ goingMarketButton.addEventListener(
 
         try {
 
-            // Refresh JWT immediately
-            // before calling function.
-
-            const authReady =
-                await syncFunctionAuth();
+            const session =
+                await getCurrentSession();
 
 
             if (
-                !authReady
+                !session
             ) {
 
                 alert(
@@ -1776,81 +1721,65 @@ goingMarketButton.addEventListener(
             }
 
 
-            const {
-                data,
-                error
-            } =
-                await db.functions.invoke(
-                    "send-push",
+            const accessToken =
+                session.access_token;
+
+
+            console.log(
+                "Calling market notification as user:",
+                session.user.id
+            );
+
+
+            const response =
+                await fetch(
+                    SEND_PUSH_FUNCTION_URL,
                     {
 
-                        body: {
+                        method:
+                            "POST",
 
-                            action:
-                                "going_market"
+                        headers: {
 
-                        }
+                            "Content-Type":
+                                "application/json",
+
+                            "apikey":
+                                SUPABASE_PUBLISHABLE_KEY,
+
+                            "Authorization":
+                                `Bearer ${accessToken}`
+
+                        },
+
+                        body:
+                            JSON.stringify({
+
+                                action:
+                                    "going_market"
+
+                            })
 
                     }
                 );
 
 
-            if (
-                error
-            ) {
-
-                console.log(
-                    "Going market error:",
-                    error
-                );
+            const data =
+                await response.json();
 
 
-                try {
-
-                    const errorBody =
-                        await error.context
-                            .json();
-
-
-                    console.log(
-                        "Function response:",
-                        errorBody
-                    );
-
-                }
-
-                catch (
-                    readError
-                ) {
-
-                    console.log(
-                        "Could not read function error:",
-                        readError
-                    );
-
-                }
-
-
-                alert(
-                    "Could not send market notification."
-                );
-
-
-                await refreshProfileState();
-
-
-                return;
-
-            }
+            console.log(
+                "Going market response:",
+                data
+            );
 
 
             if (
-                !data ||
-                data.success !== true
+                !response.ok
             ) {
 
                 if (
-                    data?.code ===
+                    data.code ===
                     "MARKET_COOLDOWN"
                 ) {
 
@@ -1863,11 +1792,29 @@ goingMarketButton.addEventListener(
                 else {
 
                     alert(
-                        data?.error ||
+                        data.error ||
                         "Could not send market notification."
                     );
 
                 }
+
+
+                await refreshProfileState();
+
+
+                return;
+
+            }
+
+
+            if (
+                data.success !== true
+            ) {
+
+                alert(
+                    data.error ||
+                    "Could not send market notification."
+                );
 
 
                 await refreshProfileState();
