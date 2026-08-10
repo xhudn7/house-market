@@ -160,10 +160,51 @@ function urlBase64ToUint8Array(
 
 
 // ====================================
+// SYNC EDGE FUNCTION AUTH
+// ====================================
+
+async function syncFunctionAuth() {
+
+    const {
+        data,
+        error
+    } =
+        await db.auth.getSession();
+
+
+    if (
+        error ||
+        !data.session
+    ) {
+
+        console.log(
+            "Could not sync function auth:",
+            error
+        );
+
+        return false;
+
+    }
+
+
+    db.functions.setAuth(
+        data.session.access_token
+    );
+
+
+    return true;
+
+}
+
+
+
+// ====================================
 // LOAD USER PROFILE
 // ====================================
 
-async function loadUserProfile(userId) {
+async function loadUserProfile(
+    userId
+) {
 
     const {
         data: profile,
@@ -187,16 +228,20 @@ async function loadUserProfile(userId) {
             .single();
 
 
-    if (error) {
+    if (
+        error
+    ) {
 
         console.log(
             "Profile error:",
             error
         );
 
+
         alert(
             "Could not load profile"
         );
+
 
         return false;
 
@@ -249,35 +294,6 @@ async function refreshProfileState() {
     await loadUserProfile(
         data.session.user.id
     );
-
-}
-
-
-
-// ====================================
-// GET USER ACCESS TOKEN
-// ====================================
-
-async function getCurrentAccessToken() {
-
-    const {
-        data,
-        error
-    } =
-        await db.auth.getSession();
-
-
-    if (
-        error ||
-        !data.session
-    ) {
-
-        return null;
-
-    }
-
-
-    return data.session.access_token;
 
 }
 
@@ -388,7 +404,10 @@ function updateGoingMarketButton() {
 
     const remainingMs =
         cooldownMs -
-        (now - lastTime);
+        (
+            now -
+            lastTime
+        );
 
 
     if (
@@ -462,7 +481,9 @@ function startMarketCooldownTimer() {
 // OPEN APP
 // ====================================
 
-async function openApp(userId) {
+async function openApp(
+    userId
+) {
 
     const profileLoaded =
         await loadUserProfile(
@@ -475,6 +496,24 @@ async function openApp(userId) {
     ) {
 
         return;
+
+    }
+
+
+    // Set the real signed-in user's JWT
+    // for Edge Function requests.
+
+    const authSynced =
+        await syncFunctionAuth();
+
+
+    if (
+        !authSynced
+    ) {
+
+        console.log(
+            "Edge Function auth not ready"
+        );
 
     }
 
@@ -546,6 +585,7 @@ loginButton.addEventListener(
             loginMessage.textContent =
                 "Wrong username or password";
 
+
             return;
 
         }
@@ -553,6 +593,12 @@ loginButton.addEventListener(
 
         loginMessage.textContent =
             "";
+
+
+        // Make sure Edge Functions
+        // use this new session.
+
+        await syncFunctionAuth();
 
 
         await openApp(
@@ -604,7 +650,10 @@ async function checkExistingSession() {
         error
     ) {
 
-        console.log(error);
+        console.log(
+            error
+        );
+
 
         return;
 
@@ -630,6 +679,9 @@ async function checkExistingSession() {
         return;
 
     }
+
+
+    await syncFunctionAuth();
 
 
     await openApp(
@@ -659,6 +711,7 @@ logoutButton.addEventListener(
                 marketCooldownTimer
             );
 
+
             marketCooldownTimer =
                 null;
 
@@ -681,11 +734,15 @@ logoutButton.addEventListener(
             error
         ) {
 
-            console.log(error);
+            console.log(
+                error
+            );
+
 
             alert(
                 "Could not logout"
             );
+
 
             return;
 
@@ -755,11 +812,15 @@ async function loadItems() {
         error
     ) {
 
-        console.log(error);
+        console.log(
+            error
+        );
+
 
         alert(
             "Could not load shopping list"
         );
+
 
         return;
 
@@ -773,7 +834,9 @@ async function loadItems() {
     items.forEach(
         function (item) {
 
-            displayItem(item);
+            displayItem(
+                item
+            );
 
         }
     );
@@ -791,7 +854,9 @@ async function loadItems() {
 // DISPLAY ITEM
 // ====================================
 
-function displayItem(item) {
+function displayItem(
+    item
+) {
 
     const newItem =
         document.createElement(
@@ -905,11 +970,15 @@ function displayItem(item) {
                 error
             ) {
 
-                console.log(error);
+                console.log(
+                    error
+                );
+
 
                 alert(
                     "Could not update item"
                 );
+
 
                 return;
 
@@ -944,11 +1013,15 @@ function displayItem(item) {
                 error
             ) {
 
-                console.log(error);
+                console.log(
+                    error
+                );
+
 
                 alert(
                     "Could not delete item"
                 );
+
 
                 return;
 
@@ -990,6 +1063,7 @@ addButton.addEventListener(
             alert(
                 "Please enter an item"
             );
+
 
             return;
 
@@ -1035,11 +1109,15 @@ addButton.addEventListener(
             error
         ) {
 
-            console.log(error);
+            console.log(
+                error
+            );
+
 
             alert(
                 "Could not add item"
             );
+
 
             return;
 
@@ -1056,6 +1134,9 @@ addButton.addEventListener(
 
         itemName.focus();
 
+
+        // Database trigger already increased
+        // pending_notify_count.
 
         await refreshProfileState();
 
@@ -1120,6 +1201,7 @@ if (
                             "Push notifications are not supported on this device."
                         );
 
+
                         return;
 
                     }
@@ -1138,6 +1220,7 @@ if (
                         alert(
                             "Notifications were not allowed."
                         );
+
 
                         return;
 
@@ -1198,6 +1281,7 @@ if (
                             "Please login first."
                         );
 
+
                         return;
 
                     }
@@ -1242,9 +1326,11 @@ if (
                             checkError
                         );
 
+
                         alert(
                             "Could not check notification subscription."
                         );
+
 
                         return;
 
@@ -1294,9 +1380,11 @@ if (
                                 insertError
                             );
 
+
                             alert(
                                 "Could not save notification subscription."
                             );
+
 
                             return;
 
@@ -1321,7 +1409,9 @@ if (
 
                 }
 
-                catch (error) {
+                catch (
+                    error
+                ) {
 
                     console.log(
                         "Notification error:",
@@ -1430,7 +1520,9 @@ async function updateNotificationButton() {
 
     }
 
-    catch (error) {
+    catch (
+        error
+    ) {
 
         console.log(
             "Notification status error:",
@@ -1486,19 +1578,24 @@ notifyFamilyButton.addEventListener(
 
         try {
 
-            const accessToken =
-                await getCurrentAccessToken();
+            // Refresh JWT immediately
+            // before calling function.
+
+            const authReady =
+                await syncFunctionAuth();
 
 
             if (
-                !accessToken
+                !authReady
             ) {
 
                 alert(
                     "Please login again."
                 );
 
+
                 await refreshProfileState();
+
 
                 return;
 
@@ -1509,27 +1606,19 @@ notifyFamilyButton.addEventListener(
                 data,
                 error
             } =
-                await db.functions
-                    .invoke(
-                        "send-push",
-                        {
+                await db.functions.invoke(
+                    "send-push",
+                    {
 
-                            headers: {
+                        body: {
 
-                                Authorization:
-                                    `Bearer ${accessToken}`
-
-                            },
-
-                            body: {
-
-                                action:
-                                    "notify_family"
-
-                            }
+                            action:
+                                "notify_family"
 
                         }
-                    );
+
+                    }
+                );
 
 
             if (
@@ -1542,12 +1631,42 @@ notifyFamilyButton.addEventListener(
                 );
 
 
+                // Try to display actual
+                // Edge Function response.
+
+                try {
+
+                    const errorBody =
+                        await error.context
+                            .json();
+
+
+                    console.log(
+                        "Function response:",
+                        errorBody
+                    );
+
+                }
+
+                catch (
+                    readError
+                ) {
+
+                    console.log(
+                        "Could not read function error:",
+                        readError
+                    );
+
+                }
+
+
                 alert(
                     "Could not notify the family."
                 );
 
 
                 await refreshProfileState();
+
 
                 return;
 
@@ -1567,6 +1686,7 @@ notifyFamilyButton.addEventListener(
 
                 await refreshProfileState();
 
+
                 return;
 
             }
@@ -1581,7 +1701,9 @@ notifyFamilyButton.addEventListener(
 
         }
 
-        catch (error) {
+        catch (
+            error
+        ) {
 
             console.log(
                 "Notify family error:",
@@ -1630,19 +1752,24 @@ goingMarketButton.addEventListener(
 
         try {
 
-            const accessToken =
-                await getCurrentAccessToken();
+            // Refresh JWT immediately
+            // before calling function.
+
+            const authReady =
+                await syncFunctionAuth();
 
 
             if (
-                !accessToken
+                !authReady
             ) {
 
                 alert(
                     "Please login again."
                 );
 
+
                 await refreshProfileState();
+
 
                 return;
 
@@ -1653,27 +1780,19 @@ goingMarketButton.addEventListener(
                 data,
                 error
             } =
-                await db.functions
-                    .invoke(
-                        "send-push",
-                        {
+                await db.functions.invoke(
+                    "send-push",
+                    {
 
-                            headers: {
+                        body: {
 
-                                Authorization:
-                                    `Bearer ${accessToken}`
-
-                            },
-
-                            body: {
-
-                                action:
-                                    "going_market"
-
-                            }
+                            action:
+                                "going_market"
 
                         }
-                    );
+
+                    }
+                );
 
 
             if (
@@ -1686,12 +1805,39 @@ goingMarketButton.addEventListener(
                 );
 
 
+                try {
+
+                    const errorBody =
+                        await error.context
+                            .json();
+
+
+                    console.log(
+                        "Function response:",
+                        errorBody
+                    );
+
+                }
+
+                catch (
+                    readError
+                ) {
+
+                    console.log(
+                        "Could not read function error:",
+                        readError
+                    );
+
+                }
+
+
                 alert(
                     "Could not send market notification."
                 );
 
 
                 await refreshProfileState();
+
 
                 return;
 
@@ -1726,6 +1872,7 @@ goingMarketButton.addEventListener(
 
                 await refreshProfileState();
 
+
                 return;
 
             }
@@ -1740,7 +1887,9 @@ goingMarketButton.addEventListener(
 
         }
 
-        catch (error) {
+        catch (
+            error
+        ) {
 
             console.log(
                 "Going market error:",
@@ -1815,7 +1964,9 @@ function startRealtime() {
             )
 
             .subscribe(
-                function (status) {
+                function (
+                    status
+                ) {
 
                     console.log(
                         "Realtime status:",
