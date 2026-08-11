@@ -39,19 +39,13 @@ const logoutButton =
 // ====================================
 
 const enableNotificationsButton =
-    document.getElementById(
-        "enableNotificationsButton"
-    );
+    document.getElementById("enableNotificationsButton");
 
 const notifyFamilyButton =
-    document.getElementById(
-        "notifyFamilyButton"
-    );
+    document.getElementById("notifyFamilyButton");
 
 const goingMarketButton =
-    document.getElementById(
-        "goingMarketButton"
-    );
+    document.getElementById("goingMarketButton");
 
 
 
@@ -95,29 +89,19 @@ const addButton =
     document.getElementById("addButton");
 
 const itemsContainer =
-    document.getElementById(
-        "itemsContainer"
-    );
+    document.getElementById("itemsContainer");
 
 const itemCount =
-    document.getElementById(
-        "itemCount"
-    );
+    document.getElementById("itemCount");
 
 
 
 // ====================================
-// SUPABASE FUNCTION URL
+// SUPABASE EDGE FUNCTION
 // ====================================
 
 const SEND_PUSH_FUNCTION_URL =
     "https://ftysipznkdquthtdxzqc.supabase.co/functions/v1/send-push";
-
-
-
-// ====================================
-// SUPABASE PUBLISHABLE KEY
-// ====================================
 
 const SUPABASE_PUBLISHABLE_KEY =
     "sb_publishable_50UgIKqEbhPkVxTrNfGH9g_4zdcMGlQ";
@@ -134,45 +118,29 @@ const VAPID_PUBLIC_KEY =
 
 
 // ====================================
-// CONVERT VAPID KEY
+// VAPID CONVERTER
 // ====================================
 
-function urlBase64ToUint8Array(
-    base64String
-) {
+function urlBase64ToUint8Array(base64String) {
 
     const padding =
         "=".repeat(
-            (
-                4 -
-                base64String.length % 4
-            ) % 4
+            (4 - base64String.length % 4) % 4
         );
 
-
     const base64 =
-        (
-            base64String +
-            padding
-        )
+        (base64String + padding)
             .replace(/-/g, "+")
             .replace(/_/g, "/");
-
 
     const rawData =
         window.atob(base64);
 
-
     return Uint8Array.from(
         [...rawData].map(
-            function (char) {
-
-                return char.charCodeAt(0);
-
-            }
+            char => char.charCodeAt(0)
         )
     );
-
 }
 
 
@@ -201,12 +169,98 @@ async function getCurrentSession() {
         );
 
         return null;
-
     }
 
 
     return data.session;
+}
 
+
+
+// ====================================
+// CALL SEND-PUSH FUNCTION
+// ====================================
+
+async function callSendPush(action) {
+
+    const session =
+        await getCurrentSession();
+
+
+    if (!session) {
+
+        return {
+            success: false,
+            error: "Please login again."
+        };
+    }
+
+
+    const response =
+        await fetch(
+            SEND_PUSH_FUNCTION_URL,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json",
+
+                    "apikey":
+                        SUPABASE_PUBLISHABLE_KEY,
+
+                    "Authorization":
+                        `Bearer ${session.access_token}`
+                },
+
+                body:
+                    JSON.stringify({
+                        action: action
+                    })
+            }
+        );
+
+
+    let data;
+
+
+    try {
+
+        data =
+            await response.json();
+
+    }
+
+    catch (error) {
+
+        console.log(
+            "Could not read Edge Function response:",
+            error
+        );
+
+        return {
+            success: false,
+            error: "Invalid server response"
+        };
+    }
+
+
+    console.log(
+        "send-push response:",
+        data
+    );
+
+
+    if (!response.ok) {
+
+        return {
+            success: false,
+            ...data
+        };
+    }
+
+
+    return data;
 }
 
 
@@ -215,9 +269,7 @@ async function getCurrentSession() {
 // LOAD USER PROFILE
 // ====================================
 
-async function loadUserProfile(
-    userId
-) {
+async function loadUserProfile(userId) {
 
     const {
         data: profile,
@@ -242,7 +294,8 @@ async function loadUserProfile(
 
 
     if (
-        error
+        error ||
+        !profile
     ) {
 
         console.log(
@@ -250,14 +303,11 @@ async function loadUserProfile(
             error
         );
 
-
         alert(
             "Could not load profile"
         );
 
-
         return false;
-
     }
 
 
@@ -266,8 +316,7 @@ async function loadUserProfile(
 
 
     welcomeName.textContent =
-        currentUserProfile
-            .display_name;
+        currentUserProfile.display_name;
 
 
     updateNotifyFamilyButton();
@@ -276,7 +325,6 @@ async function loadUserProfile(
 
 
     return true;
-
 }
 
 
@@ -291,25 +339,20 @@ async function refreshProfileState() {
         await getCurrentSession();
 
 
-    if (
-        !session
-    ) {
-
+    if (!session) {
         return;
-
     }
 
 
     await loadUserProfile(
         session.user.id
     );
-
 }
 
 
 
 // ====================================
-// NOTIFY FAMILY BUTTON STATE
+// NOTIFY FAMILY BUTTON
 // ====================================
 
 function updateNotifyFamilyButton() {
@@ -318,9 +361,7 @@ function updateNotifyFamilyButton() {
         !notifyFamilyButton ||
         !currentUserProfile
     ) {
-
         return;
-
     }
 
 
@@ -329,13 +370,10 @@ function updateNotifyFamilyButton() {
             .pending_notify_count || 0;
 
 
-    if (
-        count > 0
-    ) {
+    if (count > 0) {
 
         notifyFamilyButton.disabled =
             false;
-
 
         notifyFamilyButton.textContent =
             `🔔 Notify Family (${count})`;
@@ -347,18 +385,15 @@ function updateNotifyFamilyButton() {
         notifyFamilyButton.disabled =
             true;
 
-
         notifyFamilyButton.textContent =
             "🔔 Nothing New to Notify";
-
     }
-
 }
 
 
 
 // ====================================
-// GOING MARKET BUTTON STATE
+// GOING MARKET BUTTON
 // ====================================
 
 function updateGoingMarketButton() {
@@ -367,9 +402,7 @@ function updateGoingMarketButton() {
         !goingMarketButton ||
         !currentUserProfile
     ) {
-
         return;
-
     }
 
 
@@ -378,20 +411,15 @@ function updateGoingMarketButton() {
             .last_market_notification_at;
 
 
-    if (
-        !lastNotification
-    ) {
+    if (!lastNotification) {
 
         goingMarketButton.disabled =
             false;
 
-
         goingMarketButton.textContent =
             "🚗 Going to the Market";
 
-
         return;
-
     }
 
 
@@ -413,26 +441,18 @@ function updateGoingMarketButton() {
 
     const remainingMs =
         cooldownMs -
-        (
-            now -
-            lastTime
-        );
+        (now - lastTime);
 
 
-    if (
-        remainingMs <= 0
-    ) {
+    if (remainingMs <= 0) {
 
         goingMarketButton.disabled =
             false;
 
-
         goingMarketButton.textContent =
             "🚗 Going to the Market";
 
-
         return;
-
     }
 
 
@@ -447,10 +467,8 @@ function updateGoingMarketButton() {
     goingMarketButton.disabled =
         true;
 
-
     goingMarketButton.textContent =
         `🚗 Available in ${remainingMinutes} min`;
-
 }
 
 
@@ -461,14 +479,11 @@ function updateGoingMarketButton() {
 
 function startMarketCooldownTimer() {
 
-    if (
-        marketCooldownTimer
-    ) {
+    if (marketCooldownTimer) {
 
         clearInterval(
             marketCooldownTimer
         );
-
     }
 
 
@@ -481,7 +496,6 @@ function startMarketCooldownTimer() {
             },
             30000
         );
-
 }
 
 
@@ -490,9 +504,7 @@ function startMarketCooldownTimer() {
 // OPEN APP
 // ====================================
 
-async function openApp(
-    userId
-) {
+async function openApp(userId) {
 
     const profileLoaded =
         await loadUserProfile(
@@ -500,18 +512,13 @@ async function openApp(
         );
 
 
-    if (
-        !profileLoaded
-    ) {
-
+    if (!profileLoaded) {
         return;
-
     }
 
 
     loginBox.style.display =
         "none";
-
 
     appContent.style.display =
         "block";
@@ -519,13 +526,11 @@ async function openApp(
 
     await loadItems();
 
-
     startRealtime();
 
     startMarketCooldownTimer();
 
     await updateNotificationButton();
-
 }
 
 
@@ -559,26 +564,17 @@ loginButton.addEventListener(
         } =
             await db.auth
                 .signInWithPassword({
-
-                    email:
-                        email,
-
-                    password:
-                        password
-
+                    email: email,
+                    password: password
                 });
 
 
-        if (
-            error
-        ) {
+        if (error) {
 
             loginMessage.textContent =
                 "Wrong username or password";
 
-
             return;
-
         }
 
 
@@ -589,7 +585,6 @@ loginButton.addEventListener(
         await openApp(
             data.user.id
         );
-
     }
 );
 
@@ -603,22 +598,17 @@ loginPassword.addEventListener(
     "keydown",
     function (event) {
 
-        if (
-            event.key ===
-            "Enter"
-        ) {
+        if (event.key === "Enter") {
 
             loginButton.click();
-
         }
-
     }
 );
 
 
 
 // ====================================
-// CHECK EXISTING SESSION
+// EXISTING SESSION
 // ====================================
 
 async function checkExistingSession() {
@@ -627,27 +617,21 @@ async function checkExistingSession() {
         await getCurrentSession();
 
 
-    if (
-        !session
-    ) {
+    if (!session) {
 
         loginBox.style.display =
             "block";
 
-
         appContent.style.display =
             "none";
 
-
         return;
-
     }
 
 
     await openApp(
         session.user.id
     );
-
 }
 
 
@@ -663,49 +647,34 @@ logoutButton.addEventListener(
         await stopRealtime();
 
 
-        if (
-            marketCooldownTimer
-        ) {
+        if (marketCooldownTimer) {
 
             clearInterval(
                 marketCooldownTimer
             );
 
-
             marketCooldownTimer =
                 null;
-
         }
 
 
         const {
             error
         } =
-            await db.auth
-                .signOut({
-
-                    scope:
-                        "local"
-
-                });
+            await db.auth.signOut({
+                scope: "local"
+            });
 
 
-        if (
-            error
-        ) {
+        if (error) {
 
-            console.log(
-                error
-            );
-
+            console.log(error);
 
             alert(
                 "Could not logout"
             );
 
-
             return;
-
         }
 
 
@@ -731,7 +700,6 @@ logoutButton.addEventListener(
 
         loginPassword.value =
             "";
-
     }
 );
 
@@ -750,40 +718,29 @@ async function loadItems() {
         await db
             .from("items")
             .select("*")
-
             .order(
                 "completed",
                 {
-                    ascending:
-                        true
+                    ascending: true
                 }
             )
-
             .order(
                 "created_at",
                 {
-                    ascending:
-                        true
+                    ascending: true
                 }
             );
 
 
-    if (
-        error
-    ) {
+    if (error) {
 
-        console.log(
-            error
-        );
-
+        console.log(error);
 
         alert(
             "Could not load shopping list"
         );
 
-
         return;
-
     }
 
 
@@ -794,10 +751,7 @@ async function loadItems() {
     items.forEach(
         function (item) {
 
-            displayItem(
-                item
-            );
-
+            displayItem(item);
         }
     );
 
@@ -805,7 +759,6 @@ async function loadItems() {
     itemCount.textContent =
         items.length +
         " items";
-
 }
 
 
@@ -814,9 +767,7 @@ async function loadItems() {
 // DISPLAY ITEM
 // ====================================
 
-function displayItem(
-    item
-) {
+function displayItem(item) {
 
     const newItem =
         document.createElement(
@@ -833,15 +784,11 @@ function displayItem(
         item.id;
 
 
-    if (
-        item.completed ===
-        true
-    ) {
+    if (item.completed === true) {
 
         newItem.classList.add(
             "completed"
         );
-
     }
 
 
@@ -877,7 +824,6 @@ function displayItem(
             </button>
 
         </div>
-
     `;
 
 
@@ -894,19 +840,14 @@ function displayItem(
 
 
 
-    // ====================================
-    // COMPLETE / UNCOMPLETE
-    // ====================================
-
     doneButton.addEventListener(
         "click",
         async function () {
 
             const newCompletedValue =
-                !newItem.classList
-                    .contains(
-                        "completed"
-                    );
+                !newItem.classList.contains(
+                    "completed"
+                );
 
 
             const {
@@ -915,10 +856,8 @@ function displayItem(
                 await db
                     .from("items")
                     .update({
-
                         completed:
                             newCompletedValue
-
                     })
                     .eq(
                         "id",
@@ -926,32 +865,18 @@ function displayItem(
                     );
 
 
-            if (
-                error
-            ) {
+            if (error) {
 
-                console.log(
-                    error
-                );
-
+                console.log(error);
 
                 alert(
                     "Could not update item"
                 );
-
-
-                return;
-
             }
-
         }
     );
 
 
-
-    // ====================================
-    // DELETE
-    // ====================================
 
     deleteButton.addEventListener(
         "click",
@@ -969,24 +894,14 @@ function displayItem(
                     );
 
 
-            if (
-                error
-            ) {
+            if (error) {
 
-                console.log(
-                    error
-                );
-
+                console.log(error);
 
                 alert(
                     "Could not delete item"
                 );
-
-
-                return;
-
             }
-
         }
     );
 
@@ -994,13 +909,12 @@ function displayItem(
     itemsContainer.appendChild(
         newItem
     );
-
 }
 
 
 
 // ====================================
-// ADD NEW ITEM
+// ADD ITEM
 // ====================================
 
 addButton.addEventListener(
@@ -1008,25 +922,22 @@ addButton.addEventListener(
     async function () {
 
         const name =
-            itemName.value
-                .trim();
+            itemName.value.trim();
 
 
         const qty =
-            quantity.value;
+            Number(
+                quantity.value
+            ) || 1;
 
 
-        if (
-            name === ""
-        ) {
+        if (name === "") {
 
             alert(
                 "Please enter an item"
             );
 
-
             return;
-
         }
 
 
@@ -1045,19 +956,10 @@ addButton.addEventListener(
             await db
                 .from("items")
                 .insert({
-
-                    item_name:
-                        name,
-
-                    quantity:
-                        qty,
-
-                    requested_by:
-                        person,
-
-                    completed:
-                        false
-
+                    item_name: name,
+                    quantity: qty,
+                    requested_by: person,
+                    completed: false
                 });
 
 
@@ -1065,38 +967,28 @@ addButton.addEventListener(
             false;
 
 
-        if (
-            error
-        ) {
+        if (error) {
 
-            console.log(
-                error
-            );
-
+            console.log(error);
 
             alert(
                 "Could not add item"
             );
 
-
             return;
-
         }
 
 
         itemName.value =
             "";
 
-
         quantity.value =
             1;
-
 
         itemName.focus();
 
 
         await refreshProfileState();
-
     }
 );
 
@@ -1110,27 +1002,20 @@ itemName.addEventListener(
     "keydown",
     function (event) {
 
-        if (
-            event.key ===
-            "Enter"
-        ) {
+        if (event.key === "Enter") {
 
             addButton.click();
-
         }
-
     }
 );
 
 
 
 // ====================================
-// ENABLE PUSH NOTIFICATIONS
+// ENABLE NOTIFICATIONS
 // ====================================
 
-if (
-    enableNotificationsButton
-) {
+if (enableNotificationsButton) {
 
     enableNotificationsButton
         .addEventListener(
@@ -1140,27 +1025,16 @@ if (
                 try {
 
                     if (
-                        !(
-                            "serviceWorker"
-                            in navigator
-                        ) ||
-                        !(
-                            "PushManager"
-                            in window
-                        ) ||
-                        !(
-                            "Notification"
-                            in window
-                        )
+                        !("serviceWorker" in navigator) ||
+                        !("PushManager" in window) ||
+                        !("Notification" in window)
                     ) {
 
                         alert(
                             "Push notifications are not supported on this device."
                         );
 
-
                         return;
-
                     }
 
 
@@ -1170,17 +1044,14 @@ if (
 
 
                     if (
-                        permission !==
-                        "granted"
+                        permission !== "granted"
                     ) {
 
                         alert(
                             "Notifications were not allowed."
                         );
 
-
                         return;
-
                     }
 
 
@@ -1196,15 +1067,12 @@ if (
                             .getSubscription();
 
 
-                    if (
-                        !subscription
-                    ) {
+                    if (!subscription) {
 
                         subscription =
                             await registration
                                 .pushManager
                                 .subscribe({
-
                                     userVisibleOnly:
                                         true,
 
@@ -1212,32 +1080,25 @@ if (
                                         urlBase64ToUint8Array(
                                             VAPID_PUBLIC_KEY
                                         )
-
                                 });
-
                     }
 
 
                     const subscriptionJSON =
-                        subscription
-                            .toJSON();
+                        subscription.toJSON();
 
 
                     const session =
                         await getCurrentSession();
 
 
-                    if (
-                        !session
-                    ) {
+                    if (!session) {
 
                         alert(
                             "Please login first."
                         );
 
-
                         return;
-
                     }
 
 
@@ -1270,28 +1131,22 @@ if (
                             );
 
 
-                    if (
-                        checkError
-                    ) {
+                    if (checkError) {
 
                         console.log(
                             checkError
                         );
 
-
                         alert(
                             "Could not check notification subscription."
                         );
 
-
                         return;
-
                     }
 
 
                     if (
-                        existingSubscriptions
-                            .length === 0
+                        existingSubscriptions.length === 0
                     ) {
 
                         const {
@@ -1303,13 +1158,11 @@ if (
                                     "push_subscriptions"
                                 )
                                 .insert({
-
                                     user_id:
                                         user.id,
 
                                     endpoint:
-                                        subscriptionJSON
-                                            .endpoint,
+                                        subscriptionJSON.endpoint,
 
                                     p256dh:
                                         subscriptionJSON
@@ -1320,28 +1173,21 @@ if (
                                         subscriptionJSON
                                             .keys
                                             .auth
-
                                 });
 
 
-                        if (
-                            insertError
-                        ) {
+                        if (insertError) {
 
                             console.log(
                                 insertError
                             );
 
-
                             alert(
                                 "Could not save notification subscription."
                             );
 
-
                             return;
-
                         }
-
                     }
 
 
@@ -1361,63 +1207,45 @@ if (
 
                 }
 
-                catch (
-                    error
-                ) {
+                catch (error) {
 
                     console.log(
                         "Notification error:",
                         error
                     );
 
-
                     alert(
                         "Could not enable notifications."
                     );
-
                 }
-
             }
         );
-
 }
 
 
 
 // ====================================
-// CHECK NOTIFICATION STATUS
+// NOTIFICATION STATUS
 // ====================================
 
 async function updateNotificationButton() {
 
-    if (
-        !enableNotificationsButton
-    ) {
-
+    if (!enableNotificationsButton) {
         return;
-
     }
 
 
-    if (
-        !(
-            "Notification"
-            in window
-        )
-    ) {
+    if (!("Notification" in window)) {
 
         enableNotificationsButton
             .textContent =
             "Notifications unavailable";
 
-
         enableNotificationsButton
             .disabled =
             true;
 
-
         return;
-
     }
 
 
@@ -1430,14 +1258,11 @@ async function updateNotificationButton() {
             .textContent =
             "Enable Notifications";
 
-
         enableNotificationsButton
             .disabled =
             false;
 
-
         return;
-
     }
 
 
@@ -1455,34 +1280,26 @@ async function updateNotificationButton() {
                 .getSubscription();
 
 
-        if (
-            subscription
-        ) {
+        if (subscription) {
 
             enableNotificationsButton
                 .textContent =
                 "Notifications Enabled ✓";
 
-
             enableNotificationsButton
                 .disabled =
                 true;
-
         }
 
     }
 
-    catch (
-        error
-    ) {
+    catch (error) {
 
         console.log(
             "Notification status error:",
             error
         );
-
     }
-
 }
 
 
@@ -1495,28 +1312,16 @@ notifyFamilyButton.addEventListener(
     "click",
     async function () {
 
-        if (
-            !currentUserProfile
-        ) {
-
-            return;
-
-        }
-
-
         const count =
             currentUserProfile
-                .pending_notify_count || 0;
+                ?.pending_notify_count || 0;
 
 
-        if (
-            count <= 0
-        ) {
+        if (count <= 0) {
 
             updateNotifyFamilyButton();
 
             return;
-
         }
 
 
@@ -1530,118 +1335,55 @@ notifyFamilyButton.addEventListener(
 
         try {
 
-            const session =
-                await getCurrentSession();
+            const result =
+                await callSendPush(
+                    "notify_family"
+                );
 
 
-            if (
-                !session
-            ) {
+            if (!result.success) {
+
+                console.log(
+                    "Notify family error:",
+                    result
+                );
+
 
                 alert(
-                    "Please login again."
+                    result.error ||
+                    "Could not notify family."
                 );
 
 
                 await refreshProfileState();
 
-
                 return;
-
             }
 
 
-            const accessToken =
-                session.access_token;
-
-
-            console.log(
-                "Calling send-push as user:",
-                session.user.id
-            );
-
-
-            const response =
-                await fetch(
-                    SEND_PUSH_FUNCTION_URL,
-                    {
-
-                        method:
-                            "POST",
-
-                        headers: {
-
-                            "Content-Type":
-                                "application/json",
-
-                            "apikey":
-                                SUPABASE_PUBLISHABLE_KEY,
-
-                            "Authorization":
-                                `Bearer ${accessToken}`
-
-                        },
-
-                        body:
-                            JSON.stringify({
-
-                                action:
-                                    "notify_family"
-
-                            })
-
-                    }
-                );
-
-
-            const data =
-                await response.json();
-
-
-            console.log(
-                "Notify family response:",
-                data
-            );
+            let extraMessage =
+                "";
 
 
             if (
-                !response.ok
+                result.recipients === 0
             ) {
 
-                alert(
-                    data.error ||
-                    "Could not notify the family."
-                );
-
-
-                await refreshProfileState();
-
-
-                return;
-
+                extraMessage =
+                    "\n\nNo other subscribed devices yet.";
             }
 
+            else {
 
-            if (
-                data.success !== true
-            ) {
-
-                alert(
-                    data.error ||
-                    "Could not notify the family."
-                );
-
-
-                await refreshProfileState();
-
-
-                return;
-
+                extraMessage =
+                    `\n\nSent to ${result.sent} device(s).`;
             }
 
 
             alert(
-                `Family notified ✅\n${data.message}`
+                "Family notified ✅\n" +
+                result.message +
+                extraMessage
             );
 
 
@@ -1649,9 +1391,7 @@ notifyFamilyButton.addEventListener(
 
         }
 
-        catch (
-            error
-        ) {
+        catch (error) {
 
             console.log(
                 "Notify family error:",
@@ -1660,35 +1400,24 @@ notifyFamilyButton.addEventListener(
 
 
             alert(
-                "Could not notify the family."
+                "Could not notify family."
             );
 
 
             await refreshProfileState();
-
         }
-
     }
 );
 
 
 
 // ====================================
-// GOING TO THE MARKET
+// GOING TO MARKET
 // ====================================
 
 goingMarketButton.addEventListener(
     "click",
     async function () {
-
-        if (
-            !currentUserProfile
-        ) {
-
-            return;
-
-        }
-
 
         goingMarketButton.disabled =
             true;
@@ -1700,91 +1429,27 @@ goingMarketButton.addEventListener(
 
         try {
 
-            const session =
-                await getCurrentSession();
-
-
-            if (
-                !session
-            ) {
-
-                alert(
-                    "Please login again."
+            const result =
+                await callSendPush(
+                    "going_market"
                 );
 
 
-                await refreshProfileState();
+            if (!result.success) {
 
-
-                return;
-
-            }
-
-
-            const accessToken =
-                session.access_token;
-
-
-            console.log(
-                "Calling market notification as user:",
-                session.user.id
-            );
-
-
-            const response =
-                await fetch(
-                    SEND_PUSH_FUNCTION_URL,
-                    {
-
-                        method:
-                            "POST",
-
-                        headers: {
-
-                            "Content-Type":
-                                "application/json",
-
-                            "apikey":
-                                SUPABASE_PUBLISHABLE_KEY,
-
-                            "Authorization":
-                                `Bearer ${accessToken}`
-
-                        },
-
-                        body:
-                            JSON.stringify({
-
-                                action:
-                                    "going_market"
-
-                            })
-
-                    }
+                console.log(
+                    "Market notification error:",
+                    result
                 );
 
-
-            const data =
-                await response.json();
-
-
-            console.log(
-                "Going market response:",
-                data
-            );
-
-
-            if (
-                !response.ok
-            ) {
 
                 if (
-                    data.code ===
+                    result.code ===
                     "MARKET_COOLDOWN"
                 ) {
 
                     alert(
-                        `You can use this again in ${data.remaining_minutes} minutes.`
+                        `You can use this again in ${result.remaining_minutes} minutes.`
                     );
 
                 }
@@ -1792,41 +1457,40 @@ goingMarketButton.addEventListener(
                 else {
 
                     alert(
-                        data.error ||
+                        result.error ||
                         "Could not send market notification."
                     );
-
                 }
 
 
                 await refreshProfileState();
 
-
                 return;
-
             }
 
 
+            let extraMessage =
+                "";
+
+
             if (
-                data.success !== true
+                result.recipients === 0
             ) {
 
-                alert(
-                    data.error ||
-                    "Could not send market notification."
-                );
+                extraMessage =
+                    "\n\nNo other subscribed devices yet.";
+            }
 
+            else {
 
-                await refreshProfileState();
-
-
-                return;
-
+                extraMessage =
+                    `\n\nSent to ${result.sent} device(s).`;
             }
 
 
             alert(
-                "Family notified that you're going to the market 🚗✅"
+                "Going to market notification sent 🚗✅" +
+                extraMessage
             );
 
 
@@ -1834,12 +1498,10 @@ goingMarketButton.addEventListener(
 
         }
 
-        catch (
-            error
-        ) {
+        catch (error) {
 
             console.log(
-                "Going market error:",
+                "Market notification error:",
                 error
             );
 
@@ -1850,9 +1512,7 @@ goingMarketButton.addEventListener(
 
 
             await refreshProfileState();
-
         }
-
     }
 );
 
@@ -1864,12 +1524,8 @@ goingMarketButton.addEventListener(
 
 function startRealtime() {
 
-    if (
-        itemsRealtimeChannel
-    ) {
-
+    if (itemsRealtimeChannel) {
         return;
-
     }
 
 
@@ -1878,12 +1534,9 @@ function startRealtime() {
             .channel(
                 "items-live"
             )
-
             .on(
                 "postgres_changes",
-
                 {
-
                     event:
                         "*",
 
@@ -1892,12 +1545,9 @@ function startRealtime() {
 
                     table:
                         "items"
-
                 },
 
-                async function (
-                    payload
-                ) {
+                async function (payload) {
 
                     console.log(
                         "Realtime change:",
@@ -1906,23 +1556,17 @@ function startRealtime() {
 
 
                     await loadItems();
-
                 }
             )
-
             .subscribe(
-                function (
-                    status
-                ) {
+                function (status) {
 
                     console.log(
                         "Realtime status:",
                         status
                     );
-
                 }
             );
-
 }
 
 
@@ -1933,12 +1577,8 @@ function startRealtime() {
 
 async function stopRealtime() {
 
-    if (
-        !itemsRealtimeChannel
-    ) {
-
+    if (!itemsRealtimeChannel) {
         return;
-
     }
 
 
@@ -1949,13 +1589,12 @@ async function stopRealtime() {
 
     itemsRealtimeChannel =
         null;
-
 }
 
 
 
 // ====================================
-// START WEBSITE
+// START APP
 // ====================================
 
 checkExistingSession();
@@ -1966,10 +1605,7 @@ checkExistingSession();
 // SERVICE WORKER
 // ====================================
 
-if (
-    "serviceWorker"
-    in navigator
-) {
+if ("serviceWorker" in navigator) {
 
     window.addEventListener(
         "load",
@@ -1981,31 +1617,23 @@ if (
                     "./service-worker.js"
                 )
                 .then(
-                    function (
-                        registration
-                    ) {
+                    function (registration) {
 
                         console.log(
                             "Service Worker registered",
                             registration
                         );
-
                     }
                 )
                 .catch(
-                    function (
-                        error
-                    ) {
+                    function (error) {
 
                         console.log(
                             "Service Worker error:",
                             error
                         );
-
                     }
                 );
-
         }
     );
-
 }
